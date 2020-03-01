@@ -1,17 +1,8 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 
 namespace TinyMessenger
 {
-
-    public interface ITinyProxy
-    {
-        void Send<T>(T message);
-
-        void Listen<T>(Action<T> callback);
-    }
-
     public class DelegateProxy : ITinyProxy, IDisposable
     {
         Dictionary<Type, List<object>> Subscribers { get; set; } = new Dictionary<Type, List<object>>();
@@ -47,40 +38,5 @@ namespace TinyMessenger
                 sub.Value.Clear();
             }
         }
-    }
-
-    public class TinyMessenger : IDisposable
-    {
-
-        public TinyMessenger()
-        {
-            this.MessageProxy = new DelegateProxy();
-        }
-
-        public TinyMessenger(ITinyProxy messageProxy)
-        {
-            this.MessageProxy = messageProxy;
-        }
-
-        ITinyProxy MessageProxy { get; set; }
-
-        public void Send<T>(T message)
-        {
-            this.MessageProxy.Send<T>(message);
-        }
-
-        public void Listen<T>(Action<T> callback)
-        {
-            this.Listen<T>(callback);
-        }
-
-        public void Dispose()
-        {
-            if (this.MessageProxy is IDisposable)
-            {
-                (this.MessageProxy as IDisposable).Dispose();
-            }
-        }
-
     }
 }
