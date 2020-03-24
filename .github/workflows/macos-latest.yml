@@ -1,4 +1,4 @@
-name: Ubuntu Latest
+name: MacOS
 
 on:
   push:
