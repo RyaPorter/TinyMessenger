@@ -1,44 +1,11 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using TinyMessenger;
 
 namespace TinyMessenger
 {
 
-    internal interface ISubscription
-    {
-        string Channel { get; set; }
-        Type SubscriptionType { get; set; }
-
-        void InvokePayload(object args = null);
-    }
-
-    internal class Subscription<TPayload> : ISubscription
-    {
-        public string Channel { get; set; }
-        public Type SubscriptionType { get; set; }
-
-        public Action<TPayload> Callback { get; set; }
-
-        public void InvokePayload(object args = null)
-        {
-            if (args is TPayload)
-            {
-                Callback?.Invoke((TPayload)args);
-            }
-        }
-    }
-
-    internal class SubscriptionChannel
-    {
-        public string ChannelName { get; set; }
-        public IDictionary<Type, IList<ISubscription>> ChannelSubscriptions { get; } = new Dictionary<Type, IList<ISubscription>>();
-    }
-
     public class TinyMessenger
     {
-
         IDictionary<string, SubscriptionChannel> SubscriptionChannels { get; } = new Dictionary<string, SubscriptionChannel>();
 
         public void Send<T>(string channel, T message)

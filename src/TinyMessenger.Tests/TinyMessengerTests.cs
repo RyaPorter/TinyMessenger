@@ -1,5 +1,4 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TinyMessenger;
 
 namespace TinyMessenger.Tests
 {
@@ -7,7 +6,7 @@ namespace TinyMessenger.Tests
     public class TinyMessengerTests
     {
         [TestMethod]
-        public void ListenAndRecieveMessage()
+        public void ListenAndReceiveMessage()
         {
 
             TinyMessenger messenger = new TinyMessenger();
@@ -28,7 +27,8 @@ namespace TinyMessenger.Tests
         }
 
         [TestMethod]
-        public void ListenAndRecieveMessageTwoChannels()
+        public void ListenAndReceiveMessageTwoChannels()
+
         {
 
             TinyMessenger messenger = new TinyMessenger();
