@@ -6,7 +6,6 @@ namespace TinyMessenger
 
     public class TinyMessenger
     {
-
         IDictionary<string, SubscriptionChannel> SubscriptionChannels { get; } = new Dictionary<string, SubscriptionChannel>();
 
         public void Send<T>(string channel, T message)
