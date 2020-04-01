@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 
 namespace TinyMessenger
 {
@@ -8,6 +9,6 @@ namespace TinyMessenger
         string Channel { get; set; }
         Type SubscriptionType { get; set; }
 
-        void InvokePayload(object args = null);
+        void InvokePayload(object callbackContext = null, object args = null);
     }
 }

@@ -2,19 +2,18 @@ using System;
 
 namespace TinyMessenger
 {
-
-    internal class Subscription<TPayload> : ISubscription
+    internal class Subscription<T> : ISubscription
     {
         public string Channel { get; set; }
         public Type SubscriptionType { get; set; }
 
-        public Action<TPayload> Callback { get; set; }
+        public Action<CallbackContext<T>, T> Handler { get; set; }
 
-        public void InvokePayload(object args = null)
+        public void InvokePayload(object callbackContext = null, object args = null)
         {
-            if (args is TPayload)
+            if (args is T && callbackContext is CallbackContext<T>)
             {
-                Callback?.Invoke((TPayload)args);
+                Handler?.Invoke((CallbackContext<T>)callbackContext, (T)args);
             }
         }
     }

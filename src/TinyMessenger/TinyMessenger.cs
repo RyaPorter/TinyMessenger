@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace TinyMessenger
 {
@@ -8,29 +11,76 @@ namespace TinyMessenger
     {
         IDictionary<string, SubscriptionChannel> SubscriptionChannels { get; } = new Dictionary<string, SubscriptionChannel>();
 
+        IDictionary<MethodBase, ICallback> Callbacks { get; } = new Dictionary<MethodBase, ICallback>();
+
         public void Send<T>(string channel, T message)
         {
-            SubscriptionChannel subscriptionChannel = null;
-
-            if (this.SubscriptionChannels.TryGetValue(channel, out subscriptionChannel))
+            foreach (var sub in this.GetSubscriptions(channel, message))
             {
-                if (subscriptionChannel.ChannelSubscriptions.TryGetValue(typeof(T), out IList<ISubscription> subscriptions))
-                {
-                    foreach (var sub in subscriptions)
-                    {
-                        sub.InvokePayload(message);
-                    }
-                }
+                sub.InvokePayload(new CallbackContext<T>((a, b) => { }), message);
             }
         }
 
-        public void Subscribe<T>(string channel, Action<T> callback)
+        public void Send<T>(string channel, T message, Action<T, bool> callback)
+        {
+            foreach (var sub in this.GetSubscriptions(channel, message))
+            {
+                var cx = new CallbackContext<T>(callback);
+                sub.InvokePayload(cx, message);
+            }
+        }
+
+        public async Task SendAsync<T>(string channel, T message)
+        {
+            foreach (var sub in this.GetSubscriptions(channel, message))
+            {
+                Func<Task> t = async () =>
+                {
+                    await Task.Yield();
+                    sub.InvokePayload(new CallbackContext<T>((a, b) => { }), message);
+                };
+                await t().ConfigureAwait(false);
+            }
+        }
+
+        public async Task SendAsync<T>(string channel, T message, Action<T, bool> callback)
+        {
+            foreach (var sub in this.GetSubscriptions(channel, message))
+            {
+                Func<Task> t = async () =>
+                {
+                    await Task.Yield();
+                    var cx = new CallbackContext<T>(callback);
+
+                    sub.InvokePayload(cx, message);
+                };
+                await t().ConfigureAwait(false);
+            }
+        }
+
+        public void Subscribe<T>(string channel, Action<CallbackContext<T>, T> handler)
         {
             var sub = new Subscription<T>()
             {
                 Channel = channel,
                 SubscriptionType = typeof(T),
-                Callback = callback
+                Handler = handler
+            };
+
+            this.Subscribe<T>(channel, sub);
+        }
+
+        public void Subscribe<T>(string channel, Action<T> handler)
+        {
+            var sub = new Subscription<T>()
+            {
+                Channel = channel,
+                SubscriptionType = typeof(T),
+                Handler = (callback, m) =>
+                {
+                    handler?.Invoke(m);
+                    callback?.RaiseCallback(m, true);
+                }
             };
 
             this.Subscribe<T>(channel, sub);
@@ -38,9 +88,23 @@ namespace TinyMessenger
 
         void Subscribe<T>(string channel, ISubscription sub)
         {
-
             SubscriptionChannel subscriptionChannel = null;
+            subscriptionChannel = GetChannel(channel);
 
+            if (subscriptionChannel.ChannelSubscriptions.TryGetValue(typeof(T), out IList<ISubscription> subscription))
+            {
+                subscription?.Add(sub);
+                return;
+            }
+
+            var subs = new List<ISubscription>();
+            subs.Add(sub);
+            subscriptionChannel.ChannelSubscriptions.Add(typeof(T), subs);
+        }
+
+        private SubscriptionChannel GetChannel(string channel)
+        {
+            SubscriptionChannel subscriptionChannel;
             if (!this.SubscriptionChannels.TryGetValue(channel, out subscriptionChannel))
             {
                 var subChannel = new SubscriptionChannel() { ChannelName = channel };
@@ -48,15 +112,35 @@ namespace TinyMessenger
                 this.SubscriptionChannels.Add(channel, subChannel);
             }
 
-            if (subscriptionChannel.ChannelSubscriptions.TryGetValue(typeof(T), out IList<ISubscription> subscription))
+            return subscriptionChannel;
+        }
+
+        IEnumerable<ISubscription> GetSubscriptions<T>(string channel, T message)
+        {
+            SubscriptionChannel subscriptionChannel = null;
+
+            lock (this.SubscriptionChannels)
             {
-                subscription?.Add(sub);
+                if (this.SubscriptionChannels.TryGetValue(channel, out subscriptionChannel))
+                {
+                    return GetSubscriptionFromChannel<T>(subscriptionChannel);
+                }
             }
-            else
+
+            return default;
+        }
+
+        IEnumerable<ISubscription> GetSubscriptionFromChannel<T>(SubscriptionChannel subscriptionChannel)
+        {
+            lock (subscriptionChannel.ChannelSubscriptions)
             {
-                var subs = new List<ISubscription>();
-                subs.Add(sub);
-                subscriptionChannel.ChannelSubscriptions.Add(typeof(T), subs);
+                if (subscriptionChannel.ChannelSubscriptions.TryGetValue(typeof(T), out IList<ISubscription> subscriptions))
+                {
+                    foreach (var sub in subscriptions)
+                    {
+                        yield return sub;
+                    }
+                }
             }
         }
     }
